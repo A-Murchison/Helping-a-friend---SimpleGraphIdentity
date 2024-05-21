@@ -1,7 +1,7 @@
 using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
 
-namespace ApplicationIdentity;
+namespace SimpleGraphIdentity.Extensions;
 
 class Token
 {
@@ -14,32 +14,34 @@ class Token
 
     public Token(string tenantId, string clientId, string[] scopes)
     {
-        this.TenantId = tenantId;
-        this.ClientId = clientId;
-        this.Scopes = scopes;
-        this.CacheName = "userCache";
-        this.CachePath = ".\\cache";
-        this.Application = PublicClientApplicationBuilder
-            .Create(this.ClientId)
-            .WithAuthority(AzureCloudInstance.AzurePublic, this.TenantId)
+        TenantId = tenantId;
+        ClientId = clientId;
+        Scopes = scopes;
+        CacheName = "userCache";
+        CachePath = ".\\cache";
+        Application = PublicClientApplicationBuilder
+            .Create(ClientId)
+            .WithAuthority(AzureCloudInstance.AzurePublic, TenantId)
             .WithRedirectUri("http://localhost")
             .Build();
 
         // Create the Cache directory, file and helper
-        StorageCreationProperties storageProperties = new StorageCreationPropertiesBuilder(this.CacheName, this.CachePath).Build();
+        StorageCreationProperties storageProperties = new StorageCreationPropertiesBuilder(CacheName, CachePath).Build();
 
         MsalCacheHelper cacheHelper = MsalCacheHelper.CreateAsync(storageProperties).Result;
-        cacheHelper.RegisterCache(this.Application.UserTokenCache);
+        cacheHelper.RegisterCache(Application.UserTokenCache);
     }
 
     public async Task<string?> GetToken()
     {
-        var accounts = await this.Application.GetAccountsAsync();
+        //TODO: Check if the token is in the cache first :)
+
+        var accounts = await Application.GetAccountsAsync();
 
         AuthenticationResult? result = null;
         try
         {
-            result = await this.Application.AcquireTokenSilent(this.Scopes, accounts.FirstOrDefault()).ExecuteAsync();
+            result = await Application.AcquireTokenSilent(Scopes, accounts.FirstOrDefault()).ExecuteAsync();
         }
         catch (MsalUiRequiredException ex)
         {
@@ -47,16 +49,16 @@ class Token
 
             try
             {
-                result = await this.Application.AcquireTokenInteractive(this.Scopes).ExecuteAsync();
+                result = await Application.AcquireTokenInteractive(Scopes).ExecuteAsync();
             }
             catch (MsalException msalex)
             {
-                Console.WriteLine($"Error Acquiring Token:{System.Environment.NewLine}{msalex}");
+                Console.WriteLine($"Error Acquiring Token:{Environment.NewLine}{msalex}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error Acquiring Token Silently:{System.Environment.NewLine}{ex}");
+            Console.WriteLine($"Error Acquiring Token Silently:{Environment.NewLine}{ex}");
             return null;
         }
 

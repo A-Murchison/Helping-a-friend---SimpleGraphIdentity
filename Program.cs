@@ -1,26 +1,41 @@
-﻿using ApplicationIdentity;
-using GraphHttp;
+﻿using Microsoft.Extensions.Configuration;
+using SimpleGraphIdentity.Extensions;
+using SimpleGraphIdentity.Models;
+using System.Text.Json;
+
+//Build config 
+var configuration = new ConfigurationBuilder()
+     .AddJsonFile("appsettings.json");
+var config = configuration.Build();
+var settings = config.GetSection("AppSettings").Get<AppSettings>();
+
 
 // Default Scope
 string[] scopes = { "https://graph.microsoft.com/.default" };
-string tenantId = "common";
-string clientId = "3d04380f-2420-4eb9-ba3b-28f07e1ef5f4";
+string tenantId = settings.TenantId;
+string clientId = settings.ClientId;
 
 // Create new Token
 Token token = new(tenantId, clientId, scopes);
-string? accessToken = token.GetToken().Result;
+string? accessToken = await token.GetToken();
 
 if (accessToken != null)
 {
     // Create new GraphClient
-    GraphClient graphClient = new(accessToken);
 
-    // GET new GraphUser
-    GraphUser graphUser = new(graphClient);
+    using (var graphClient = new GraphClient(accessToken))
+    {
+        HttpResponseMessage response = await graphClient.Client.GetAsync("https://graph.microsoft.com/v1.0/me");
+        if (response == null || !response.IsSuccessStatusCode)
+            throw new Exception("Pass in error message...");
 
-    Console.WriteLine($"Id: {graphUser.Id}");
-    Console.WriteLine($"DisplayName: {graphUser.DisplayName}");
-    Console.WriteLine($"Mail: {graphUser.Mail}");
+        string json = await response.Content.ReadAsStringAsync();
+        GraphUser graphUser = JsonSerializer.Deserialize<GraphUser>(json);
+
+        Console.WriteLine($"Id: {graphUser.Id}");
+        Console.WriteLine($"DisplayName: {graphUser.DisplayName}");
+        Console.WriteLine($"Mail: {graphUser.Mail}");
+    }  
 }
 else
 {
